@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --yes)"
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --yes)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)",
+      "Bash(curl -s \"https://ai-gateway.vercel.sh/v1/models\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(m['id']\\) for m in data['data'] if m['id'].startswith\\('anthropic/'\\)]\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(m['id']\\) for m in data['data'] if m['id'].startswith\\('anthropic/claude-sonnet'\\)]\")",
+      "Bash(npx tsc *)"
+    ],
+    "additionalDirectories": [
+      "/Users/morishu1108/Works/claude/ai-aide/src/lib"
     ]
   }
 }
