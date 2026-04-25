@@ -105,7 +105,11 @@ export async function getUpcomingEvents(groupId: string): Promise<string> {
       hour: "2-digit",
       minute: "2-digit",
     });
-    return `・${date} ${e.summary ?? "(タイトルなし)"}`;
+    const isFromLine = e.extendedProperties?.private?.["line-secretary"] === "true";
+    const label = isFromLine
+      ? `${e.summary ?? "(タイトルなし)"}`
+      : "（予定あり）";
+    return `・${date} ${label}`;
   });
 
   return `📅 今後1週間の予定:\n${lines.join("\n")}`;
@@ -129,6 +133,9 @@ export async function addEvent(
       summary: title,
       start: { dateTime: `${date}T${startTime}:00`, timeZone: "Asia/Tokyo" },
       end: { dateTime: `${date}T${endTime}:00`, timeZone: "Asia/Tokyo" },
+      extendedProperties: {
+        private: { "line-secretary": "true" },
+      },
     },
   });
 
