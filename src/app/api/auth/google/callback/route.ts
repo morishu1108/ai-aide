@@ -7,18 +7,16 @@ const client = new messagingApi.MessagingApiClient({
 });
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const { searchParams } = req.nextUrl;
-  const code = searchParams.get("code");
-  const groupId = searchParams.get("state");
+  const code = req.nextUrl.searchParams.get("code");
+  const state = req.nextUrl.searchParams.get("state");
 
-  if (!code || !groupId) {
+  if (!code || !state) {
     return new NextResponse("Invalid request", { status: 400 });
   }
 
   try {
-    await saveTokens(groupId, code);
+    const groupId = await saveTokens(state, code);
 
-    // グループに連携完了を通知
     await client.pushMessage({
       to: groupId,
       messages: [

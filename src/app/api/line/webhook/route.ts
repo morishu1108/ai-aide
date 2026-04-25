@@ -69,7 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // コマンド処理
       let reply: string | null = null;
       try {
-        reply = await handleCommand(groupId, userId, text);
+        reply = await handleCommand(groupId, userId, displayName, text);
       } catch (err) {
         console.error("handleCommand error:", err);
         reply = "⚠️ エラーが発生しました。しばらく経ってから再度お試しください。";

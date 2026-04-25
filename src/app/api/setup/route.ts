@@ -25,15 +25,16 @@ export async function POST(): Promise<NextResponse> {
     ON messages (group_id, created_at)
   `;
 
+  // Migrate google_tokens to per-user composite PK
   await sql`
-    CREATE TABLE IF NOT EXISTS google_tokens (
-      group_id VARCHAR(64) PRIMARY KEY,
-      access_token TEXT NOT NULL,
-      refresh_token TEXT NOT NULL,
-      expires_at TIMESTAMPTZ NOT NULL,
-      calendar_id VARCHAR(256) NOT NULL DEFAULT 'primary'
-    )
+    ALTER TABLE google_tokens
+      ADD COLUMN IF NOT EXISTS user_id VARCHAR(64) NOT NULL DEFAULT '__group__',
+      ADD COLUMN IF NOT EXISTS display_name VARCHAR(128) NOT NULL DEFAULT ''
   `;
+  await sql`ALTER TABLE google_tokens DROP CONSTRAINT IF EXISTS google_tokens_pkey`;
+  // Remove stale rows from old single-calendar-per-group format
+  await sql`DELETE FROM google_tokens WHERE user_id = '__group__'`;
+  await sql`ALTER TABLE google_tokens ADD PRIMARY KEY (group_id, user_id)`;
 
-  return NextResponse.json({ ok: true, message: "Tables created successfully" });
+  return NextResponse.json({ ok: true, message: "Migration completed" });
 }
