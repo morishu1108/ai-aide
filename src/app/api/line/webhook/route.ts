@@ -67,7 +67,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       });
 
       // コマンド処理
-      const reply = await handleCommand(groupId, userId, text);
+      let reply: string | null = null;
+      try {
+        reply = await handleCommand(groupId, userId, text);
+      } catch (err) {
+        console.error("handleCommand error:", err);
+        reply = "⚠️ エラーが発生しました。しばらく経ってから再度お試しください。";
+      }
       if (!reply) return;
 
       await client.replyMessage({
