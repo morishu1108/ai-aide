@@ -198,18 +198,35 @@ export async function getGroupFreeSlots(groupId: string): Promise<string> {
     }
   }
 
-  // Generate 1-hour slots 9:00-20:00 JST and filter free ones
-  const freeSlots: Date[] = [];
-  let dayStart = tomorrowJSTMidnight;
+  // Preferred hours: 9-12, 13-17 JST  Non-preferred: 12-13 (lunch), 17-21 (evening)
+  const PREFERRED = [9,10,11,13,14,15,16];
+  const NON_PREFERRED = [12,17,18,19,20];
 
-  for (let d = 0; d < 7 && freeSlots.length < 5; d++) {
-    for (let h = 9; h <= 20 && freeSlots.length < 5; h++) {
-      const slotStart = new Date(dayStart.getTime() + h * 3600000);
-      const slotEnd = new Date(slotStart.getTime() + 3600000);
-      const isBusy = allBusy.some((b) => b.start < slotEnd && b.end > slotStart);
-      if (!isBusy) freeSlots.push(slotStart);
+  function collectFreeSlots(hours: number[], limit: number): Date[] {
+    const result: Date[] = [];
+    let dayStart = tomorrowJSTMidnight;
+    for (let d = 0; d < 7 && result.length < limit; d++) {
+      for (const h of hours) {
+        if (result.length >= limit) break;
+        const slotStart = new Date(dayStart.getTime() + h * 3600000);
+        const slotEnd = new Date(slotStart.getTime() + 3600000);
+        const isBusy = allBusy.some((b) => b.start < slotEnd && b.end > slotStart);
+        if (!isBusy) result.push(slotStart);
+      }
+      dayStart = new Date(dayStart.getTime() + 24 * 3600000);
     }
-    dayStart = new Date(dayStart.getTime() + 24 * 3600000);
+    return result;
+  }
+
+  // Try preferred hours first; fall back to non-preferred only if not enough
+  let freeSlots = collectFreeSlots(PREFERRED, 5);
+  let usedFallback = false;
+  if (freeSlots.length < 5) {
+    const fallback = collectFreeSlots(NON_PREFERRED, 5 - freeSlots.length);
+    if (fallback.length > 0) {
+      freeSlots = [...freeSlots, ...fallback].sort((a, b) => a.getTime() - b.getTime());
+      usedFallback = true;
+    }
   }
 
   if (freeSlots.length === 0) {
@@ -219,10 +236,14 @@ export async function getGroupFreeSlots(groupId: string): Promise<string> {
   const memberNames = tokens.map((t) => t.displayName || "メンバー").join("・");
   const lines = freeSlots.map((s) => {
     const e = new Date(s.getTime() + 3600000);
-    return `・${formatDateTime(s)}〜${formatTime(e)}`;
+    const h = Number(formatTime(s).split(":")[0]);
+    const isNonPreferred = h === 12 || h >= 17;
+    const label = isNonPreferred ? " ⚠️" : "";
+    return `・${formatDateTime(s)}〜${formatTime(e)}${label}`;
   });
 
-  return `🗓 【${memberNames}】\n全員が空いている時間帯（1時間枠）:\n${lines.join("\n")}`;
+  const note = usedFallback ? "\n⚠️ = 昼休み・夕方以降のみ空いている時間帯" : "";
+  return `🗓 【${memberNames}】\n全員が空いている時間帯（1時間枠）:\n${lines.join("\n")}${note}`;
 }
 
 export async function isLinked(groupId: string, userId: string): Promise<boolean> {
