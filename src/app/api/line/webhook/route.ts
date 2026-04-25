@@ -42,11 +42,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const source = msgEvent.source;
       if (source.type !== "group" && source.type !== "room") return;
 
-      const groupId =
-        source.type === "group" ? source.groupId : source.roomId;
+      const groupId = source.type === "group" ? source.groupId : source.roomId;
       const userId = source.userId ?? "unknown";
 
-      // ユーザー表示名を取得（グループ限定）
+      // メンション情報を抽出（最初のユーザーメンションのuserId）
+      const mentionees = (textMsg as TextMessage & {
+        mention?: { mentionees: { type: string; userId?: string }[] };
+      }).mention?.mentionees ?? [];
+      const mentionedUserId = mentionees.find((m) => m.type === "user")?.userId;
+
+      // ユーザー表示名を取得
       let displayName = "メンバー";
       try {
         if (source.type === "group") {
@@ -67,19 +72,40 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       });
 
       // コマンド処理
-      let reply: string | null = null;
+      let result: { text: string; sendPrivately?: boolean } | null = null;
       try {
-        reply = await handleCommand(groupId, userId, displayName, text);
+        result = await handleCommand(groupId, userId, displayName, text, mentionedUserId);
       } catch (err) {
         console.error("handleCommand error:", err);
-        reply = "⚠️ エラーが発生しました。しばらく経ってから再度お試しください。";
+        result = { text: "⚠️ エラーが発生しました。しばらく経ってから再度お試しください。" };
       }
-      if (!reply) return;
+      if (!result) return;
 
-      await client.replyMessage({
-        replyToken: msgEvent.replyToken,
-        messages: [{ type: "text", text: reply }],
-      });
+      if (result.sendPrivately) {
+        // Bot との1対1チャットにDM送信（友達追加が必要）
+        try {
+          await client.pushMessage({
+            to: userId,
+            messages: [{ type: "text", text: result.text }],
+          });
+          // グループには通知のみ
+          await client.replyMessage({
+            replyToken: msgEvent.replyToken,
+            messages: [{ type: "text", text: "📩 結果をDMでお送りしました。" }],
+          });
+        } catch {
+          // DM失敗時はグループに返信
+          await client.replyMessage({
+            replyToken: msgEvent.replyToken,
+            messages: [{ type: "text", text: result.text }],
+          });
+        }
+      } else {
+        await client.replyMessage({
+          replyToken: msgEvent.replyToken,
+          messages: [{ type: "text", text: result.text }],
+        });
+      }
     })
   );
 
