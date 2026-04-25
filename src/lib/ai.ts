@@ -1,6 +1,6 @@
 import { generateText, gateway } from "ai";
 
-const MODEL = "anthropic/claude-sonnet-4.6";
+const MODEL = "anthropic/claude-haiku-4.5";
 
 type Message = { displayName: string; text: string; createdAt: Date };
 
