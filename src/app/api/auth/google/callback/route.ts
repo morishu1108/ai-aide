@@ -28,9 +28,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     });
 
     return new NextResponse(
-      `<html><body style="font-family:sans-serif;text-align:center;padding:40px">
-        <h2>✅ 連携完了！</h2>
-        <p>Googleカレンダーとの連携が完了しました。<br>LINEグループに戻ってご利用ください。</p>
+      `<html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#f0fff4">
+        <h2 style="color:#06C755">✅ 連携完了！</h2>
+        <p style="color:#333">Googleカレンダーとの連携が完了しました。</p>
+        <a href="https://line.me/R/ti/g/${groupId}"
+           style="display:inline-block;margin-top:16px;padding:12px 28px;background:#06C755;color:#fff;border-radius:24px;text-decoration:none;font-weight:bold;font-size:16px">
+          LINEグループに戻る
+        </a>
       </body></html>`,
       { headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
