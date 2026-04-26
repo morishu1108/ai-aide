@@ -108,7 +108,11 @@ function formatTime(date: Date): string {
   });
 }
 
-export async function getUpcomingEvents(groupId: string, userId: string): Promise<string> {
+export async function getUpcomingEvents(
+  groupId: string,
+  userId: string,
+  dateRange?: { start: Date; end: Date; label: string }
+): Promise<string> {
   const token = await getTokenForUser(groupId, userId);
   if (!token) return "⚠️ あなたのGoogleカレンダーが連携されていません。\n`カレンダー連携` と送信して設定してください。";
 
@@ -116,17 +120,21 @@ export async function getUpcomingEvents(groupId: string, userId: string): Promis
   const calendar = google.calendar({ version: "v3", auth: auth.client });
   const now = new Date();
 
+  const timeMin = dateRange?.start ?? now;
+  const timeMax = dateRange?.end ?? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const label = dateRange?.label ?? "今後1週間";
+
   const res = await calendar.events.list({
     calendarId: auth.calendarId,
-    timeMin: now.toISOString(),
-    timeMax: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
     singleEvents: true,
     orderBy: "startTime",
-    maxResults: 10,
+    maxResults: 20,
   });
 
   const events = res.data.items ?? [];
-  if (events.length === 0) return "📅 今後1週間の予定はありません。";
+  if (events.length === 0) return `📅 ${label}の予定はありません。`;
 
   const lines = events.map((e) => {
     const start = e.start?.dateTime ?? e.start?.date ?? "";
@@ -135,7 +143,7 @@ export async function getUpcomingEvents(groupId: string, userId: string): Promis
     return `・${date} ${isFromLine ? e.summary ?? "(タイトルなし)" : "（予定あり）"}`;
   });
 
-  return `📅 今後1週間の予定:\n${lines.join("\n")}`;
+  return `📅 ${label}の予定:\n${lines.join("\n")}`;
 }
 
 export async function addEvent(
