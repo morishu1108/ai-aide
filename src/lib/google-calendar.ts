@@ -136,14 +136,37 @@ export async function getUpcomingEvents(
   const events = res.data.items ?? [];
   if (events.length === 0) return `📅 ${label}の予定はありません。`;
 
-  const lines = events.map((e) => {
-    const start = e.start?.dateTime ?? e.start?.date ?? "";
-    const date = formatDateTime(new Date(start));
-    const isFromLine = e.extendedProperties?.private?.["line-secretary"] === groupId;
-    return `・${date} ${isFromLine ? e.summary ?? "(タイトルなし)" : "（予定あり）"}`;
-  });
+  // Group events by JST date string (e.g. "4/26")
+  const byDate = new Map<string, string[]>();
+  const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
-  return `📅 ${label}の予定:\n${lines.join("\n")}`;
+  for (const e of events) {
+    const startRaw = e.start?.dateTime ?? e.start?.date ?? "";
+    const endRaw = e.end?.dateTime ?? e.end?.date ?? "";
+    const startDate = new Date(startRaw);
+    const isAllDay = !e.start?.dateTime;
+
+    const jstStart = new Date(startDate.getTime() + JST);
+    const dateKey = `${jstStart.getUTCMonth() + 1}/${jstStart.getUTCDate()}`;
+    const weekday = WEEKDAYS[new Date(startDate).getDay()];
+    const header = `■${dateKey}(${weekday})`;
+
+    const timeStr = isAllDay
+      ? "終日"
+      : `${formatTime(startDate)}-${formatTime(new Date(endRaw))}`;
+
+    const isFromLine = e.extendedProperties?.private?.["line-secretary"] === groupId;
+    const title = isFromLine ? e.summary ?? "(タイトルなし)" : "（予定あり）";
+
+    if (!byDate.has(header)) byDate.set(header, []);
+    byDate.get(header)!.push(`${timeStr} ${title}`);
+  }
+
+  const sections = Array.from(byDate.entries()).map(
+    ([header, items]) => `${header}\n${items.join("\n")}`
+  );
+
+  return `📅 ${label}の予定:\n\n${sections.join("\n\n")}`;
 }
 
 export async function addEvent(
