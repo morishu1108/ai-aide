@@ -156,7 +156,8 @@ export async function getUpcomingEvents(
       : `${formatTime(startDate)}-${formatTime(new Date(endRaw))}`;
 
     const isFromLine = e.extendedProperties?.private?.["line-secretary"] === groupId;
-    const title = isFromLine ? e.summary ?? "(タイトルなし)" : "（予定あり）";
+    const initial = token.displayName ? token.displayName.charAt(0) : "?";
+    const title = isFromLine ? e.summary ?? "(タイトルなし)" : `（予定有 ${initial}）`;
 
     if (!byDate.has(header)) byDate.set(header, []);
     byDate.get(header)!.push(`${timeStr} ${title}`);
