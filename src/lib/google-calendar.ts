@@ -131,7 +131,7 @@ export async function getUpcomingEvents(groupId: string, userId: string): Promis
   const lines = events.map((e) => {
     const start = e.start?.dateTime ?? e.start?.date ?? "";
     const date = formatDateTime(new Date(start));
-    const isFromLine = e.extendedProperties?.private?.["line-secretary"] === "true";
+    const isFromLine = e.extendedProperties?.private?.["line-secretary"] === groupId;
     return `・${date} ${isFromLine ? e.summary ?? "(タイトルなし)" : "（予定あり）"}`;
   });
 
@@ -158,7 +158,7 @@ export async function addEvent(
       summary: title,
       start: { dateTime: `${date}T${startTime}:00`, timeZone: "Asia/Tokyo" },
       end: { dateTime: `${date}T${endTime}:00`, timeZone: "Asia/Tokyo" },
-      extendedProperties: { private: { "line-secretary": "true" } },
+      extendedProperties: { private: { "line-secretary": groupId } },
     },
   });
 
