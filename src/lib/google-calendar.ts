@@ -278,6 +278,71 @@ export async function getGroupFreeSlots(groupId: string): Promise<string> {
   return `🗓 【${memberNames}】\n全員が空いている時間帯（1時間枠）:\n${lines.join("\n")}${note}`;
 }
 
+export async function getGroupUpcomingEvents(
+  groupId: string,
+  dateRange?: { start: Date; end: Date; label: string }
+): Promise<string> {
+  const tokens = await db.select().from(googleTokens).where(eq(googleTokens.groupId, groupId));
+  if (tokens.length === 0) {
+    return "⚠️ カレンダーを連携しているメンバーがいません。\n`カレンダー連携` と送信して設定してください。";
+  }
+
+  const now = new Date();
+  const timeMin = dateRange?.start ?? now;
+  const timeMax = dateRange?.end ?? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const label = dateRange?.label ?? "今後1週間";
+
+  type EventItem = { start: Date; end: Date; title: string; isAllDay: boolean };
+  const allEvents: EventItem[] = [];
+
+  for (const token of tokens) {
+    const auth = await makeClient(token);
+    const calendar = google.calendar({ version: "v3", auth: auth.client });
+    const res = await calendar.events.list({
+      calendarId: auth.calendarId,
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults: 50,
+    });
+
+    const initial = token.displayName ? token.displayName.charAt(0) : "?";
+    for (const e of res.data.items ?? []) {
+      const startRaw = e.start?.dateTime ?? e.start?.date ?? "";
+      const endRaw = e.end?.dateTime ?? e.end?.date ?? "";
+      const startDate = new Date(startRaw);
+      const isAllDay = !e.start?.dateTime;
+      const isFromLine = e.extendedProperties?.private?.["line-secretary"] === groupId;
+      const title = isFromLine ? (e.summary ?? "(タイトルなし)") : `（予定有 ${initial}）`;
+      allEvents.push({ start: startDate, end: new Date(endRaw), title, isAllDay });
+    }
+  }
+
+  allEvents.sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  if (allEvents.length === 0) return `📅 ${label}の予定はありません。`;
+
+  const byDate = new Map<string, string[]>();
+  const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+  for (const e of allEvents) {
+    const jstStart = new Date(e.start.getTime() + JST);
+    const dateKey = `${jstStart.getUTCMonth() + 1}/${jstStart.getUTCDate()}`;
+    const weekday = WEEKDAYS[e.start.getDay()];
+    const header = `■${dateKey}(${weekday})`;
+    const timeStr = e.isAllDay ? "終日" : `${formatTime(e.start)}-${formatTime(e.end)}`;
+    if (!byDate.has(header)) byDate.set(header, []);
+    byDate.get(header)!.push(`${timeStr} ${e.title}`);
+  }
+
+  const sections = Array.from(byDate.entries()).map(
+    ([header, items]) => `${header}\n${items.join("\n")}`
+  );
+  const memberNames = tokens.map((t) => t.displayName || "メンバー").join("・");
+  return `📅 ${label}の予定（${memberNames}）:\n\n${sections.join("\n\n")}`;
+}
+
 export async function isLinked(groupId: string, userId: string): Promise<boolean> {
   const token = await getTokenForUser(groupId, userId);
   return !!token;

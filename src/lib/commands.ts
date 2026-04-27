@@ -5,6 +5,7 @@ import { summarizeMessages, parseScheduleRequest } from "./ai";
 import {
   encodeState,
   getUpcomingEvents,
+  getGroupUpcomingEvents,
   addEvent,
   getGroupFreeSlots,
   isLinked,
@@ -61,7 +62,7 @@ function parseDateFilter(arg: string): { start: Date; end: Date; label: string }
 const HELP_TEXT = `🤖 グループ秘書Bot コマンド一覧:
 
 ・まとめて — 直近の会話を要約します
-・予定確認 — 自分の今後1週間の予定を表示します
+・予定確認 — 連携済み全員の今後1週間の予定を表示します
 ・予定確認 今日/明日/明後日/4/27 — 指定日の予定を表示します
 ・予定確認 @メンション — 指定した人の予定を自分だけに表示します
 ・予定確認 @メンション 今日 — 組み合わせも可能です
@@ -111,8 +112,8 @@ export async function handleCommand(
       return { text: events, sendPrivately: true };
     }
 
-    // メンションなし → 自分の予定をグループに返す
-    const events = await getUpcomingEvents(groupId, userId, dateRange);
+    // メンションなし → 連携済みメンバー全員の予定をグループに返す
+    const events = await getGroupUpcomingEvents(groupId, dateRange);
     return { text: events };
   }
 
